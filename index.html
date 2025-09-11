@@ -416,13 +416,7 @@ function renderCheckin(){
     });
     const actions=document.createElement("div"); actions.className="row";
     const saveBtn=document.createElement("button"); saveBtn.type="submit"; saveBtn.className="btn primary"; saveBtn.textContent="Save & Continue";
-    const skipBtn=document.createElement("button"); skipBtn.type="button"; skipBtn.className="btn ghost"; skipBtn.textContent="Skip for now";
-    skipBtn.onclick=()=>{ // rotate: move current id to end
-      const rest = due.slice(1); rest.push(id);
-      // naive rotation: store a transient order in memory by writing the just-saved item first next time; simplest fix is to just re-render and let the next item appear
-      buildQueue();
-    };
-    actions.appendChild(saveBtn); actions.appendChild(skipBtn);
+    actions.appendChild(saveBtn); 
     form.appendChild(actions);
 
     form.onsubmit=(e)=>{
