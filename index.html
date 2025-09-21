@@ -5,59 +5,132 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>NS Psycho — Weekly Tracker</title>
 <style>
-  :root { --fg:#111; --bg:#fff; --muted:#6a6a6a; --line:#e6e6e6; --ink:#000; }
-  html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:16px/1.42 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-  header{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-  h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.2px}
+  :root {
+    --fg:#0f172a;
+    --bg:#f5f7fb;
+    --surface:#ffffff;
+    --surface-muted:#eef2fb;
+    --muted:#667085;
+    --line:rgba(15,23,42,0.08);
+    --accent:#2563eb;
+    --accent-soft:rgba(37,99,235,0.18);
+    --ink:#0f172a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:16px/1.6 "Inter","Segoe UI",Roboto,-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;-webkit-font-smoothing:antialiased}
+  body{min-height:100vh}
+  header{padding:18px 28px;background:var(--surface);display:flex;gap:16px;align-items:center;flex-wrap:wrap;position:sticky;top:0;z-index:20;border-bottom:1px solid var(--line);box-shadow:0 1px 0 rgba(15,23,42,0.04)}
+  h1{font-size:20px;margin:0;font-weight:700;letter-spacing:-.01em;color:var(--fg)}
   nav{display:flex;gap:8px;flex-wrap:wrap}
-  .pill{border:1px solid var(--ink);padding:6px 10px;border-radius:999px;background:#fff;color:#000;cursor:pointer}
-  .pill[aria-pressed="true"]{background:#000;color:#fff}
-  main{max-width:980px;margin:0 auto;padding:20px}
-  h2{font-size:18px;margin:0 0 10px;font-weight:700}
-  h3{font-size:15px;margin:16px 0 8px;font-weight:700}
-  .muted{color:var(--muted)} .small{font-size:12px}
+  .pill{border:none;background:transparent;padding:8px 14px;border-radius:999px;color:var(--muted);font-weight:600;letter-spacing:.01em;cursor:pointer;transition:background .2s,color .2s,transform .2s}
+  .pill:hover{color:var(--fg);transform:translateY(-1px)}
+  .pill[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent)}
+  main{max-width:1080px;margin:0 auto;padding:48px 24px 80px;display:block}
+  h2{font-size:30px;margin:0 0 12px;font-weight:700;letter-spacing:-.02em}
+  h3{font-size:18px;margin:16px 0 8px;font-weight:600;letter-spacing:-.01em;color:var(--fg)}
+  p{margin:0 0 16px;color:var(--muted)}
+  .muted{color:var(--muted)}
+  .small{font-size:13px}
   .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .stack{display:flex;flex-direction:column;gap:12px}
   .stack-lg{display:flex;flex-direction:column;gap:20px}
-  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-  @media (max-width:880px){ .grid3{grid-template-columns:1fr 1fr} }
-  .btn{border:1px solid var(--ink);background:#fff;color:#000;padding:8px 12px;border-radius:6px;cursor:pointer}
-  .btn.primary{background:#000;color:#fff}
-  .btn.ghost{border-color:#bbb;color:#111}
-  .chip{display:inline-block;border:1px solid #000;border-radius:999px;padding:4px 10px;margin:3px 6px 3px 0;cursor:pointer}
-  .chip.on{background:#000;color:#fff}
-  .badge{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:2px 8px;font-size:12px;background:#f7f7f7;color:var(--fg)}
-  .card{border:1px solid #000;border-radius:8px;padding:16px;background:#fff}
-  .item{padding:10px 12px;border:1px solid var(--line);border-radius:6px;margin:8px 0}
-  label{display:block;margin:8px 0 6px}
-  table{border-collapse:collapse;width:100%;font-size:14px}
-  th,td{border:1px solid var(--line);padding:6px 8px;text-align:left}
-  .bar{height:140px;border:1px solid var(--line);border-radius:6px;display:flex;align-items:flex-end;gap:6px;padding:8px;overflow-x:auto}
-  .bar div{width:16px;background:#000}
-  .progress{height:8px;background:#f3f3f3;border:1px solid var(--line);border-radius:4px;overflow:hidden}
-  .progress>div{height:8px;background:#000}
+  .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+  @media (max-width:880px){.grid3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media (max-width:640px){header{padding:16px 20px}main{padding:32px 20px 64px}}
+  .btn{border:1px solid transparent;background:var(--surface);color:var(--fg);padding:10px 18px;border-radius:12px;font-weight:600;letter-spacing:.01em;cursor:pointer;transition:background .2s,border .2s,box-shadow .2s,transform .2s;display:inline-flex;align-items:center;gap:8px}
+  .btn:hover{transform:translateY(-1px)}
+  .btn:focus-visible{outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
+  .btn.primary{background:var(--accent);color:#fff;box-shadow:0 16px 30px -18px rgba(37,99,235,.6)}
+  .btn.primary:hover{background:#1d4ed8}
+  .btn.ghost{background:var(--surface-muted);color:var(--fg);border-color:transparent}
+  .btn.ghost:hover{border-color:var(--accent-soft)}
+  .btn.small{padding:6px 12px;font-size:13px}
+  .btn.stretch{width:100%;justify-content:center}
+  .chip{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:6px 12px;margin:3px 6px 3px 0;cursor:pointer;background:var(--surface);color:var(--fg);font-size:13px;font-weight:500}
+  .chip.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+  .badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 10px;font-size:12px;font-weight:600;color:var(--muted);background:var(--surface-muted);border:1px solid transparent;letter-spacing:.03em;text-transform:uppercase}
+  .card{background:var(--surface);border-radius:20px;border:1px solid var(--line);padding:24px;box-shadow:0 30px 60px -50px rgba(15,23,42,.6)}
+  .item{padding:12px 14px;border:1px solid var(--line);border-radius:12px;margin:8px 0;background:var(--surface)}
+  label{display:block;font-size:14px;font-weight:600;color:var(--fg)}
+  input,select,textarea{font:inherit}
+  input[type="text"],input[type="date"],input[type="number"],input[type="search"],select,textarea{width:100%;padding:12px 14px;border-radius:12px;border:1px solid transparent;background:var(--surface-muted);color:var(--fg);transition:background .2s,border .2s,box-shadow .2s}
+  input[type="text"]:focus,input[type="date"]:focus,input[type="number"]:focus,input[type="search"]:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);background:var(--surface)}
+  textarea{resize:vertical;min-height:120px}
+  table{border-collapse:collapse;width:100%;font-size:14px;background:var(--surface);border-radius:12px;overflow:hidden}
+  th,td{border:1px solid var(--line);padding:10px 12px;text-align:left}
+  .bar{height:160px;border:1px solid var(--line);border-radius:12px;display:flex;align-items:flex-end;gap:8px;padding:12px;overflow-x:auto;background:var(--surface)}
+  .bar div{width:18px;border-radius:8px 8px 4px 4px;background:linear-gradient(180deg,var(--accent),rgba(37,99,235,.4))}
+  .progress{height:8px;background:var(--surface-muted);border-radius:8px;overflow:hidden;border:1px solid var(--line)}
+  .progress>div{height:8px;background:var(--accent)}
   .center{display:flex;justify-content:center;align-items:center;text-align:center}
-  .overlay{border:1px solid #000;border-radius:12px;padding:28px;max-width:560px;margin:40px auto;background:#fff}
-  .stepper{display:flex;gap:8px;align-items:center;margin:6px 0 16px}
-  .step{display:flex;align-items:center;gap:8px}
-  .dot{width:22px;height:22px;border-radius:50%;border:1px solid #000;display:inline-grid;place-items:center;font-size:12px}
-  .dot.active{background:#000;color:#fff}
-  .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;background:#f5f5f5;border:1px solid #ccc;padding:1px 6px;border-radius:4px}
-  .journal-entry{border:1px solid var(--line);border-radius:8px;padding:14px;margin:8px 0;background:#fff}
-  .journal-entry h3{margin:6px 0 4px}
-  .journal-field strong{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);margin-top:10px}
-  .journal-field div{white-space:pre-wrap;font-size:14px;margin-top:4px}
-  .note-text{white-space:pre-wrap;font-size:14px;margin:10px 0 0}
-  .journal-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
-  .tag{display:inline-flex;align-items:center;background:#f1f1f1;border-radius:999px;padding:3px 9px;font-size:12px;color:#333}
-  .mood-badge{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:2px 8px;font-size:12px;color:#fff}
-  .mood-badge.low{background:#c62828}
-  .mood-badge.mid{background:#f9a602;color:#111}
-  .mood-badge.high{background:#2e7d32}
-  .journal-empty{padding:18px;border:1px dashed var(--line);border-radius:8px;text-align:center;color:var(--muted);margin-top:10px}
-  .journal-filters{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin:12px 0}
-  .journal-filters label{margin:0;font-size:13px;color:var(--muted)}
-  .entry-actions{display:flex;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap;gap:8px}
+  .overlay{border:1px solid var(--line);border-radius:16px;padding:28px;max-width:560px;margin:40px auto;background:var(--surface);box-shadow:0 28px 60px -48px rgba(15,23,42,.4)}
+  .stepper{display:flex;gap:10px;align-items:center;margin:6px 0 16px}
+  .step{display:flex;align-items:center;gap:8px;color:var(--muted);font-weight:600}
+  .dot{width:26px;height:26px;border-radius:50%;border:1px solid var(--line);display:inline-grid;place-items:center;font-size:12px;background:var(--surface)}
+  .dot.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+  .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;background:var(--surface-muted);border:1px solid var(--line);padding:2px 6px;border-radius:6px}
+  .page-header{display:flex;flex-direction:column;gap:10px;margin-bottom:32px}
+  .page-header p{max-width:540px;margin:0}
+  .surface-block{background:var(--surface);border-radius:24px;border:1px solid var(--line);padding:28px;box-shadow:0 40px 70px -60px rgba(15,23,42,.6)}
+  .journal-layout{display:grid;grid-template-columns:minmax(0,360px) minmax(0,1fr);gap:32px;align-items:flex-start}
+  @media (max-width:1020px){.journal-layout{grid-template-columns:1fr}}
+  .journal-form form{display:flex;flex-direction:column;gap:20px}
+  .journal-log{display:flex;flex-direction:column;gap:20px}
+  label.control,.control{display:flex;flex-direction:column;gap:8px;font-weight:600;font-size:13px;color:var(--fg);letter-spacing:.02em}
+  label.control .field-label,.control .field-label{color:var(--muted);letter-spacing:.12em;font-size:11px;text-transform:uppercase}
+  .field-input{border-radius:14px;padding:14px 16px;background:var(--surface-muted);border:1px solid transparent;color:var(--fg);font-weight:500}
+  .field-input:focus{background:var(--surface);border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);outline:none}
+  select.field-input{appearance:none;background-image:url('data:image/svg+xml;utf8,<svg fill="%23667085" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5"/></svg>');background-repeat:no-repeat;background-position:right 12px center;background-size:16px;padding-right:40px}
+  .toggle{display:inline-flex;align-items:center;gap:12px;cursor:pointer;font-size:14px;font-weight:600;color:var(--fg)}
+  .toggle input{appearance:none;width:44px;height:24px;border-radius:999px;background:var(--surface);border:1px solid var(--line);position:relative;transition:background .2s,border .2s}
+  .toggle input::after{content:"";position:absolute;width:20px;height:20px;border-radius:50%;background:#fff;top:1px;left:1px;box-shadow:0 2px 4px rgba(15,23,42,.15);transition:transform .2s}
+  .toggle input:checked{background:var(--accent);border-color:var(--accent)}
+  .toggle input:checked::after{transform:translateX(20px)}
+  .toggle input:focus-visible{outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
+  .mood-control{gap:14px;padding:20px;background:var(--surface-muted);border-radius:20px;border:1px solid var(--line)}
+  .mood-control .field-label{margin-bottom:-6px}
+  .mood-control .mood-slider{display:flex;align-items:center;gap:16px}
+  .mood-control input[type="range"]{width:100%;accent-color:var(--accent)}
+  .mood-value{display:inline-flex;align-items:center;justify-content:center;min-width:88px;padding:10px 12px;border-radius:12px;background:var(--surface);border:1px solid var(--line);font-weight:600;color:var(--fg)}
+  .mood-control.is-disabled{opacity:.6}
+  .mood-control.is-disabled .mood-value{background:var(--surface-muted)}
+  .session-fields{display:flex;flex-direction:column;gap:16px;background:var(--surface-muted);border-radius:20px;padding:20px;border:1px solid var(--line)}
+  .session-fields .session-label{font-size:11px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;font-weight:700}
+  .session-fields .session-grid{display:flex;flex-direction:column;gap:16px}
+  .form-actions{display:flex;flex-direction:column;gap:12px}
+  .journal-log-header{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}
+  .journal-log-header h3{margin:0;font-size:20px}
+  .journal-log-header .small{margin-top:4px}
+  .journal-filters{display:flex;flex-wrap:wrap;gap:16px;background:var(--surface-muted);border-radius:20px;padding:18px;border:1px solid var(--line)}
+  .journal-filters label.control{flex:1 1 200px}
+  .journal-filters .field-input{background:var(--surface)}
+  .journal-filters .field-input:focus{background:var(--surface)}
+  .journal-list{display:flex;flex-direction:column;gap:18px}
+  .journal-entry{border:1px solid transparent;border-radius:22px;padding:24px;background:var(--surface);box-shadow:0 24px 60px -48px rgba(15,23,42,.45);display:flex;flex-direction:column;gap:16px;transition:transform .2s,box-shadow .2s}
+  .journal-entry:hover{transform:translateY(-2px);box-shadow:0 28px 70px -48px rgba(15,23,42,.5)}
+  .entry-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+  .entry-meta{display:flex;flex-direction:column;gap:6px}
+  .entry-meta strong{font-size:15px;letter-spacing:.01em}
+  .entry-badges{display:flex;gap:8px;flex-wrap:wrap}
+  .entry-actions{display:flex;align-items:center;gap:10px;color:var(--muted);flex-wrap:wrap}
+  .entry-time{color:var(--muted);font-size:12px;letter-spacing:.04em;text-transform:uppercase}
+  .journal-entry h3{margin:0;font-size:20px;letter-spacing:-.01em}
+  .journal-field{display:flex;flex-direction:column;gap:6px;padding:14px 16px;border-radius:16px;background:var(--surface-muted)}
+  .journal-field strong{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+  .journal-field div{white-space:pre-wrap;font-size:14px;color:var(--fg)}
+  .note-text{white-space:pre-wrap;font-size:15px;line-height:1.7;color:var(--fg)}
+  .journal-tags{display:flex;gap:8px;flex-wrap:wrap}
+  .tag{display:inline-flex;align-items:center;background:var(--accent-soft);border-radius:999px;padding:6px 12px;font-size:13px;color:var(--accent);font-weight:600}
+  .mood-badge{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:4px 10px;font-size:12px;font-weight:600;color:#fff;letter-spacing:.02em;text-transform:uppercase}
+  .mood-badge.low{background:#ef4444}
+  .mood-badge.mid{background:#f59e0b;color:#111}
+  .mood-badge.high{background:#22c55e}
+  .journal-empty{padding:28px;border-radius:20px;border:1px dashed var(--line);text-align:center;color:var(--muted);background:var(--surface-muted)}
+  .journal-entry .badge{background:var(--surface-muted);color:var(--muted)}
+  .journal-entry .tag{background:var(--accent-soft)}
+  .journal-entry .mood-badge{box-shadow:0 10px 20px -14px rgba(37,99,235,.5)}
+  .entry-actions .btn.ghost{background:var(--surface)}
+  @media (max-width:540px){.journal-entry{padding:20px}.journal-log-header{flex-direction:column;align-items:flex-start}.journal-filters{padding:16px}}
 </style>
 </head>
 <body>
@@ -720,12 +793,12 @@ const JournalView=(()=>{
     }
 
     filtered.forEach(entry=>{
-      const card=document.createElement("div"); card.className="journal-entry";
+      const card=document.createElement("article"); card.className="journal-entry";
 
-      const header=document.createElement("div"); header.className="row"; header.style.justifyContent="space-between";
-      const left=document.createElement("div"); left.className="stack"; left.style.gap="4px";
+      const header=document.createElement("div"); header.className="entry-header";
+      const left=document.createElement("div"); left.className="entry-meta";
       const date=document.createElement("strong"); date.textContent=toDisplayDate(entry.date);
-      const sub=document.createElement("div"); sub.className="row"; sub.style.gap="6px";
+      const sub=document.createElement("div"); sub.className="entry-badges";
       const typeBadge=document.createElement("span"); typeBadge.className="badge"; typeBadge.textContent=describeEntryType(entry.type);
       sub.appendChild(typeBadge);
       if(entry.mood!==null && entry.mood!==undefined){
@@ -736,10 +809,10 @@ const JournalView=(()=>{
       left.appendChild(date); left.appendChild(sub);
       header.appendChild(left);
 
-      const actionsWrap=document.createElement("div"); actionsWrap.className="row"; actionsWrap.style.gap="6px";
-      const time=document.createElement("span"); time.className="small muted"; time.textContent=`Logged ${toDisplayDateTime(entry.savedAt)}`;
+      const actionsWrap=document.createElement("div"); actionsWrap.className="entry-actions";
+      const time=document.createElement("span"); time.className="entry-time"; time.textContent=`Logged ${toDisplayDateTime(entry.savedAt)}`;
       actionsWrap.appendChild(time);
-      const del=document.createElement("button"); del.className="btn ghost small"; del.textContent="Delete";
+      const del=document.createElement("button"); del.type="button"; del.className="btn ghost small"; del.textContent="Delete";
       del.onclick=()=>{
         if(confirm("Delete this journal entry?")){
           State.mutate(state=>{ state.journal=state.journal.filter(e=>e.id!==entry.id); });
@@ -780,70 +853,90 @@ const JournalView=(()=>{
   }
   return {
     render(container){
-      const header=document.createElement("div"); header.className="stack";
+      const header=document.createElement("div"); header.className="page-header";
       const title=document.createElement("h2"); title.textContent="Journaling";
-      const intro=document.createElement("p"); intro.className="muted"; intro.textContent="Log mood check-ins, sessions, and reflections to see how your wellbeing evolves over time.";
+      const intro=document.createElement("p"); intro.textContent="Log mood check-ins, sessions, and reflections to see how your wellbeing evolves over time.";
       header.appendChild(title); header.appendChild(intro);
       container.appendChild(header);
 
-      const formCard=document.createElement("div"); formCard.className="card stack";
+      const layout=document.createElement("div"); layout.className="journal-layout";
+      container.appendChild(layout);
+
+      const formCard=document.createElement("div"); formCard.className="surface-block journal-form";
       const formTitle=document.createElement("h3"); formTitle.textContent="Add an entry"; formCard.appendChild(formTitle);
-      const form=document.createElement("form"); form.className="stack"; form.style.gap="10px";
+      const form=document.createElement("form"); formCard.appendChild(form);
+      layout.appendChild(formCard);
 
-      const dateLabel=document.createElement("label"); dateLabel.textContent="Entry date";
-      const dateInput=document.createElement("input"); dateInput.type="date"; dateInput.value=todayISO();
-      dateLabel.appendChild(dateInput); form.appendChild(dateLabel);
+      const dateLabel=document.createElement("label"); dateLabel.className="control";
+      const dateLabelText=document.createElement("span"); dateLabelText.className="field-label"; dateLabelText.textContent="Entry date";
+      const dateInput=document.createElement("input"); dateInput.type="date"; dateInput.value=todayISO(); dateInput.className="field-input";
+      dateLabel.appendChild(dateLabelText); dateLabel.appendChild(dateInput); form.appendChild(dateLabel);
 
-      const typeLabel=document.createElement("label"); typeLabel.textContent="Entry type";
-      const typeSelect=document.createElement("select");
+      const typeLabel=document.createElement("label"); typeLabel.className="control";
+      const typeLabelText=document.createElement("span"); typeLabelText.className="field-label"; typeLabelText.textContent="Entry type";
+      const typeSelect=document.createElement("select"); typeSelect.className="field-input";
       [{value:"mood",label:"Mood check-in"},{value:"session",label:"Session / protocol"},{value:"general",label:"General reflection"}]
         .forEach(opt=>{ const option=document.createElement("option"); option.value=opt.value; option.textContent=opt.label; typeSelect.appendChild(option); });
-      typeLabel.appendChild(typeSelect); form.appendChild(typeLabel);
+      typeLabel.appendChild(typeLabelText); typeLabel.appendChild(typeSelect); form.appendChild(typeLabel);
 
-      const moodWrap=document.createElement("div"); moodWrap.className="stack"; moodWrap.style.gap="6px";
-      const moodRow=document.createElement("div"); moodRow.className="row"; moodRow.style.alignItems="center";
+      const moodWrap=document.createElement("div"); moodWrap.className="control mood-control";
+      const moodLabel=document.createElement("span"); moodLabel.className="field-label"; moodLabel.textContent="Mood check-in";
+      moodWrap.appendChild(moodLabel);
       const moodToggle=document.createElement("input"); moodToggle.type="checkbox"; moodToggle.checked=true; moodToggle.id="moodToggle";
-      const moodToggleLabel=document.createElement("label"); moodToggleLabel.className="small"; moodToggleLabel.setAttribute("for","moodToggle"); moodToggleLabel.textContent="Include mood rating";
-      moodRow.appendChild(moodToggle); moodRow.appendChild(moodToggleLabel);
-      moodWrap.appendChild(moodRow);
-      const sliderRow=document.createElement("div"); sliderRow.className="row";
-      const moodInput=document.createElement("input"); moodInput.type="range"; moodInput.min="1"; moodInput.max="10"; moodInput.value="5";
-      const moodValue=document.createElement("span"); moodValue.className="badge"; moodValue.textContent="5 / 10";
+      const moodToggleLabel=document.createElement("label"); moodToggleLabel.className="toggle";
+      moodToggleLabel.appendChild(moodToggle);
+      const moodToggleText=document.createElement("span"); moodToggleText.textContent="Include mood rating";
+      moodToggleLabel.appendChild(moodToggleText);
+      moodWrap.appendChild(moodToggleLabel);
+      const sliderRow=document.createElement("div"); sliderRow.className="mood-slider";
+      const moodInput=document.createElement("input"); moodInput.type="range"; moodInput.min="1"; moodInput.max="10"; moodInput.value="5"; moodInput.setAttribute("aria-label","Mood rating");
+      const moodValue=document.createElement("span"); moodValue.className="mood-value"; moodValue.textContent="5 / 10";
       sliderRow.appendChild(moodInput); sliderRow.appendChild(moodValue);
       moodWrap.appendChild(sliderRow);
       form.appendChild(moodWrap);
       const toggleMood=()=>{
-        moodInput.disabled=!moodToggle.checked;
-        moodValue.textContent = moodToggle.checked ? `${moodInput.value} / 10` : "Not recorded";
+        const enabled=moodToggle.checked;
+        moodInput.disabled=!enabled;
+        moodWrap.classList.toggle("is-disabled",!enabled);
+        moodValue.textContent = enabled ? `${moodInput.value} / 10` : "Not recorded";
       };
-      moodToggle.onchange=toggleMood;
-      moodInput.oninput=()=>{ moodValue.textContent=`${moodInput.value} / 10`; };
+      moodToggle.addEventListener("change",toggleMood);
+      moodInput.addEventListener("input",()=>{ moodValue.textContent=`${moodInput.value} / 10`; });
       toggleMood();
 
-      const titleLabel=document.createElement("label"); titleLabel.textContent="Title or short summary";
-      const titleInput=document.createElement("input"); titleInput.type="text"; titleInput.placeholder="Optional";
-      titleLabel.appendChild(titleInput); form.appendChild(titleLabel);
+      const titleLabel=document.createElement("label"); titleLabel.className="control";
+      const titleLabelText=document.createElement("span"); titleLabelText.className="field-label"; titleLabelText.textContent="Title or short summary";
+      const titleInput=document.createElement("input"); titleInput.type="text"; titleInput.placeholder="Optional"; titleInput.className="field-input";
+      titleLabel.appendChild(titleLabelText); titleLabel.appendChild(titleInput); form.appendChild(titleLabel);
 
-      const sessionWrap=document.createElement("div"); sessionWrap.className="stack"; sessionWrap.style.gap="10px";
-      const protocolLabel=document.createElement("label"); protocolLabel.textContent="Protocol or focus";
-      const protocolInput=document.createElement("input"); protocolInput.type="text"; protocolInput.placeholder="e.g. Alpha uptrain";
-      protocolLabel.appendChild(protocolInput);
-      const effectsLabel=document.createElement("label"); effectsLabel.textContent="Immediate effects";
-      const effectsInput=document.createElement("textarea"); effectsInput.rows=3; effectsInput.placeholder="What did you notice during or after the session?";
-      effectsLabel.appendChild(effectsInput);
-      sessionWrap.appendChild(protocolLabel); sessionWrap.appendChild(effectsLabel);
+      const sessionWrap=document.createElement("div"); sessionWrap.className="session-fields";
+      const sessionHeading=document.createElement("div"); sessionHeading.className="session-label"; sessionHeading.textContent="Session details";
+      sessionWrap.appendChild(sessionHeading);
+      const sessionGrid=document.createElement("div"); sessionGrid.className="session-grid";
+      sessionWrap.appendChild(sessionGrid);
+      const protocolLabel=document.createElement("label"); protocolLabel.className="control";
+      const protocolLabelText=document.createElement("span"); protocolLabelText.className="field-label"; protocolLabelText.textContent="Protocol or focus";
+      const protocolInput=document.createElement("input"); protocolInput.type="text"; protocolInput.placeholder="e.g. Alpha uptrain"; protocolInput.className="field-input";
+      protocolLabel.appendChild(protocolLabelText); protocolLabel.appendChild(protocolInput);
+      const effectsLabel=document.createElement("label"); effectsLabel.className="control";
+      const effectsLabelText=document.createElement("span"); effectsLabelText.className="field-label"; effectsLabelText.textContent="Immediate effects";
+      const effectsInput=document.createElement("textarea"); effectsInput.rows=3; effectsInput.placeholder="What did you notice during or after the session?"; effectsInput.className="field-input";
+      effectsLabel.appendChild(effectsLabelText); effectsLabel.appendChild(effectsInput);
+      sessionGrid.appendChild(protocolLabel); sessionGrid.appendChild(effectsLabel);
       form.appendChild(sessionWrap);
 
-      const notesLabel=document.createElement("label"); notesLabel.textContent="Notes";
-      const notesInput=document.createElement("textarea"); notesInput.rows=4; notesInput.placeholder="Feelings, wins, triggers, gratitude…";
-      notesLabel.appendChild(notesInput); form.appendChild(notesLabel);
+      const notesLabel=document.createElement("label"); notesLabel.className="control";
+      const notesLabelText=document.createElement("span"); notesLabelText.className="field-label"; notesLabelText.textContent="Notes";
+      const notesInput=document.createElement("textarea"); notesInput.rows=4; notesInput.placeholder="Feelings, wins, triggers, gratitude…"; notesInput.className="field-input";
+      notesLabel.appendChild(notesLabelText); notesLabel.appendChild(notesInput); form.appendChild(notesLabel);
 
-      const tagsLabel=document.createElement("label"); tagsLabel.textContent="Tags (comma separated)";
-      const tagsInput=document.createElement("input"); tagsInput.type="text"; tagsInput.placeholder="sleep, focus, gratitude";
-      tagsLabel.appendChild(tagsInput); form.appendChild(tagsLabel);
+      const tagsLabel=document.createElement("label"); tagsLabel.className="control";
+      const tagsLabelText=document.createElement("span"); tagsLabelText.className="field-label"; tagsLabelText.textContent="Tags (comma separated)";
+      const tagsInput=document.createElement("input"); tagsInput.type="text"; tagsInput.placeholder="sleep, focus, gratitude"; tagsInput.className="field-input";
+      tagsLabel.appendChild(tagsLabelText); tagsLabel.appendChild(tagsInput); form.appendChild(tagsLabel);
 
-      const saveRow=document.createElement("div"); saveRow.className="row";
-      const saveBtn=document.createElement("button"); saveBtn.type="submit"; saveBtn.className="btn primary"; saveBtn.textContent="Save entry";
+      const saveRow=document.createElement("div"); saveRow.className="form-actions";
+      const saveBtn=document.createElement("button"); saveBtn.type="submit"; saveBtn.className="btn primary stretch"; saveBtn.textContent="Save entry";
       saveRow.appendChild(saveBtn);
       form.appendChild(saveRow);
 
@@ -882,35 +975,34 @@ const JournalView=(()=>{
         renderList(listContainer,summary,resultsInfo);
       };
 
-      formCard.appendChild(form);
-      container.appendChild(formCard);
-
-      const logCard=document.createElement("div"); logCard.className="card";
-      const logHeader=document.createElement("div"); logHeader.className="row"; logHeader.style.justifyContent="space-between";
-      const logTitle=document.createElement("h3"); logTitle.style.margin="0"; logTitle.textContent="Journal history";
+      const logCard=document.createElement("div"); logCard.className="surface-block journal-log";
+      layout.appendChild(logCard);
+      const logHeader=document.createElement("div"); logHeader.className="journal-log-header";
+      const logTitle=document.createElement("h3"); logTitle.textContent="Journal history";
       const summary=document.createElement("div"); summary.className="small muted";
       logHeader.appendChild(logTitle); logHeader.appendChild(summary);
       logCard.appendChild(logHeader);
 
       const filtersRow=document.createElement("div"); filtersRow.className="journal-filters";
-      const typeFilterLabel=document.createElement("label"); typeFilterLabel.textContent="Type";
-      const typeFilter=document.createElement("select");
+      const typeFilterLabel=document.createElement("label"); typeFilterLabel.className="control";
+      const typeFilterLabelText=document.createElement("span"); typeFilterLabelText.className="field-label"; typeFilterLabelText.textContent="Type";
+      const typeFilter=document.createElement("select"); typeFilter.className="field-input";
       [{value:"all",label:"All entries"},{value:"mood",label:"Mood check-ins"},{value:"session",label:"Sessions"},{value:"general",label:"General notes"}]
         .forEach(opt=>{ const option=document.createElement("option"); option.value=opt.value; option.textContent=opt.label; if(opt.value===filters.type) option.selected=true; typeFilter.appendChild(option); });
       typeFilter.onchange=()=>{ filters.type=typeFilter.value; renderList(listContainer,summary,resultsInfo); };
-      typeFilterLabel.appendChild(typeFilter); filtersRow.appendChild(typeFilterLabel);
+      typeFilterLabel.appendChild(typeFilterLabelText); typeFilterLabel.appendChild(typeFilter); filtersRow.appendChild(typeFilterLabel);
 
-      const searchLabel=document.createElement("label"); searchLabel.textContent="Search";
-      const searchInput=document.createElement("input"); searchInput.type="search"; searchInput.placeholder="mood, focus, tag…"; searchInput.value=filters.search;
+      const searchLabel=document.createElement("label"); searchLabel.className="control";
+      const searchLabelText=document.createElement("span"); searchLabelText.className="field-label"; searchLabelText.textContent="Search";
+      const searchInput=document.createElement("input"); searchInput.type="search"; searchInput.placeholder="mood, focus, tag…"; searchInput.value=filters.search; searchInput.className="field-input";
       searchInput.oninput=()=>{ filters.search=searchInput.value; renderList(listContainer,summary,resultsInfo); };
-      searchLabel.appendChild(searchInput); filtersRow.appendChild(searchLabel);
+      searchLabel.appendChild(searchLabelText); searchLabel.appendChild(searchInput); filtersRow.appendChild(searchLabel);
       logCard.appendChild(filtersRow);
 
-      const resultsInfo=document.createElement("div"); resultsInfo.className="small muted"; resultsInfo.style.marginBottom="8px";
+      const resultsInfo=document.createElement("div"); resultsInfo.className="small muted";
       logCard.appendChild(resultsInfo);
 
-      const listContainer=document.createElement("div"); logCard.appendChild(listContainer);
-      container.appendChild(logCard);
+      const listContainer=document.createElement("div"); listContainer.className="journal-list"; logCard.appendChild(listContainer);
 
       renderList(listContainer,summary,resultsInfo);
     }
