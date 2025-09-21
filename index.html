@@ -18,6 +18,7 @@
   .muted{color:var(--muted)} .small{font-size:12px}
   .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .stack{display:flex;flex-direction:column;gap:12px}
+  .stack-lg{display:flex;flex-direction:column;gap:20px}
   .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
   @media (max-width:880px){ .grid3{grid-template-columns:1fr 1fr} }
   .btn{border:1px solid var(--ink);background:#fff;color:#000;padding:8px 12px;border-radius:6px;cursor:pointer}
@@ -25,6 +26,7 @@
   .btn.ghost{border-color:#bbb;color:#111}
   .chip{display:inline-block;border:1px solid #000;border-radius:999px;padding:4px 10px;margin:3px 6px 3px 0;cursor:pointer}
   .chip.on{background:#000;color:#fff}
+  .badge{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:2px 8px;font-size:12px;background:#f7f7f7;color:var(--fg)}
   .card{border:1px solid #000;border-radius:8px;padding:16px;background:#fff}
   .item{padding:10px 12px;border:1px solid var(--line);border-radius:6px;margin:8px 0}
   label{display:block;margin:8px 0 6px}
@@ -41,15 +43,31 @@
   .dot{width:22px;height:22px;border-radius:50%;border:1px solid #000;display:inline-grid;place-items:center;font-size:12px}
   .dot.active{background:#000;color:#fff}
   .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;background:#f5f5f5;border:1px solid #ccc;padding:1px 6px;border-radius:4px}
+  .journal-entry{border:1px solid var(--line);border-radius:8px;padding:14px;margin:8px 0;background:#fff}
+  .journal-entry h3{margin:6px 0 4px}
+  .journal-field strong{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);margin-top:10px}
+  .journal-field div{white-space:pre-wrap;font-size:14px;margin-top:4px}
+  .note-text{white-space:pre-wrap;font-size:14px;margin:10px 0 0}
+  .journal-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .tag{display:inline-flex;align-items:center;background:#f1f1f1;border-radius:999px;padding:3px 9px;font-size:12px;color:#333}
+  .mood-badge{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:2px 8px;font-size:12px;color:#fff}
+  .mood-badge.low{background:#c62828}
+  .mood-badge.mid{background:#f9a602;color:#111}
+  .mood-badge.high{background:#2e7d32}
+  .journal-empty{padding:18px;border:1px dashed var(--line);border-radius:8px;text-align:center;color:var(--muted);margin-top:10px}
+  .journal-filters{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin:12px 0}
+  .journal-filters label{margin:0;font-size:13px;color:var(--muted)}
+  .entry-actions{display:flex;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap;gap:8px}
 </style>
 </head>
 <body>
 <header>
   <h1>NS Psychometric — Weekly Tracker</h1>
   <nav>
-    <button class="pill" id="nav-setup"   aria-pressed="true">Setup</button>
+    <button class="pill" id="nav-setup" aria-pressed="true">Setup</button>
     <button class="pill" id="nav-checkin">Weekly Check‑In</button>
     <button class="pill" id="nav-dash">Dashboard</button>
+    <button class="pill" id="nav-journal">Journaling</button>
     <button class="pill" id="nav-corr">Correlations</button>
     <button class="pill" id="nav-data">Data</button>
   </nav>
@@ -62,7 +80,7 @@
 
 <script>
 /* =========================
-   Utilities & Storage
+   Utilities & Constants
    ========================= */
 const byId=id=>document.getElementById(id);
 const todayISO=()=>new Date().toISOString().slice(0,10);
@@ -74,33 +92,28 @@ function isoWeekKey(date=new Date()){
   return `${d.getUTCFullYear()}-W${String(w).padStart(2,'0')}`;
 }
 function weekKeyFromInput(val){ return val && /^\d{4}-W\d{2}$/.test(val) ? val : isoWeekKey(new Date()); }
-const STORE_KEY="nspsycho_v3";
-function load(){
-  try{
-    const x=JSON.parse(localStorage.getItem(STORE_KEY));
-    if(!x) throw 0;
-    if(Array.isArray(x.data)){ x.data.forEach(e=>{ if(!e.week && e.date) e.week = isoWeekKey(new Date(e.date)); }); }
-    if(!x.areas) x.areas=[];
-    if(!x.assigned) x.assigned={};
-    if(!x.meta) x.meta={};
-    return x;
-  }catch{
-    return {areas:[],assigned:{},data:[],meta:{}};
-  }
+const clamp=(val,min,max)=>Math.min(max,Math.max(min,val));
+const makeId=(prefix)=>`${prefix}_${Math.random().toString(36).slice(2,8)}${Date.now().toString(36)}`;
+const parseTags=str=>str.split(",").map(t=>t.trim()).filter(Boolean);
+function toDisplayDate(dateStr){
+  if(!dateStr) return "Unknown date";
+  const d=new Date(dateStr);
+  return Number.isNaN(d.getTime())?dateStr:d.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"});
 }
-function save(){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+function toDisplayDateTime(dateStr){
+  if(!dateStr) return "";
+  const d=new Date(dateStr);
+  return Number.isNaN(d.getTime())?dateStr:d.toLocaleString();
+}
 
-/* =========================
-   Areas & Instruments (full)
-   ========================= */
 const AREAS=[
   {id:"wellbeing", name:"Well‑Being"},
   {id:"depression", name:"Depression"},
-  {id:"anxiety", name:"Anxiety / Distress"},
+  {id:"anxiety", name="Anxiety / Distress"},
   {id:"functioning", name:"Functioning"},
-  {id:"resilience", name:"Resilience"},
+  {id:"resilience", name="Resilience"},
   {id:"ptsd", name:"PTSD"},
-  {id:"somatic", name:"Somatic"},
+  {id:"somatic", name="Somatic"},
   {id:"eating", name:"Eating"},
   {id:"relationships", name:"Relationships / Attachment"},
   {id:"ocd", name:"OCD"},
@@ -170,397 +183,871 @@ const DEFAULT_ASSIGN={
   ocd:["DOCS_SF5"],
   nondual:["NAS7"]
 };
+const STORE_KEY="nspsycho_v3";
+const AREA_MAP=new Map(AREAS.map(a=>[a.id,a]));
+const SCALE_MAP=new Map(SCALES.map(s=>[s.id,s]));
 
 /* =========================
-   State & Navigation
+   State Normalisation & Storage
    ========================= */
-let state=load();
-AREAS.forEach(a=>{ if(!state.assigned[a.id]) state.assigned[a.id]=DEFAULT_ASSIGN[a.id]||[]; });
-save();
-
-let view="setup";        // setup | checkin | dash | corr | data
-let setupStep=1;         // 1..3
-let currentArea=state.areas[0]||"wellbeing";
-
-byId("nav-setup").onclick = ()=> setView("setup");
-byId("nav-checkin").onclick = ()=> setView("checkin");
-byId("nav-dash").onclick = ()=> setView("dash");
-byId("nav-corr").onclick = ()=> setView("corr");
-byId("nav-data").onclick = ()=> setView("data");
-
-function setView(v){
-  view=v;
-  byId("nav-setup").setAttribute("aria-pressed", v==="setup");
-  byId("nav-checkin").setAttribute("aria-pressed", v==="checkin");
-  byId("nav-dash").setAttribute("aria-pressed", v==="dash");
-  byId("nav-corr").setAttribute("aria-pressed", v==="corr");
-  byId("nav-data").setAttribute("aria-pressed", v==="data");
-  render();
+function normalizeJournalEntry(entry,idx){
+  if(!entry||typeof entry!=="object") return null;
+  const normalized={...entry};
+  normalized.id=typeof entry.id==="string"?entry.id:`legacy_${idx}_${Date.now().toString(36)}`;
+  normalized.date=entry.date||todayISO();
+  normalized.type=entry.type==="session"?"session":entry.type==="general"?"general":"mood";
+  const mood=Number(entry.mood);
+  normalized.mood=Number.isFinite(mood)?clamp(Math.round(mood),1,10):null;
+  normalized.title=entry.title?String(entry.title):"";
+  normalized.protocol=entry.protocol?String(entry.protocol):"";
+  normalized.effects=entry.effects?String(entry.effects):(entry.outcome?String(entry.outcome):"");
+  normalized.notes=entry.notes?String(entry.notes):"";
+  if(Array.isArray(entry.tags)) normalized.tags=entry.tags.map(t=>String(t)).filter(Boolean);
+  else if(typeof entry.tags==="string") normalized.tags=parseTags(entry.tags);
+  else normalized.tags=[];
+  normalized.savedAt=entry.savedAt||entry.createdAt||new Date().toISOString();
+  return normalized;
 }
-function render(){ if(view==="setup") renderSetup(); if(view==="checkin") renderCheckin(); if(view==="dash") renderDash(); if(view==="corr") renderCorr(); if(view==="data") renderData(); }
-
-/* =========================
-   SETUP (wizard) — FIXED
-   ========================= */
-function renderSetup(){
-  const p=byId("panel"); p.innerHTML="";
-  const stepper=document.createElement("div"); stepper.className="stepper";
-  stepper.innerHTML = `
-    <div class="step"><div class="dot ${setupStep===1?'active':''}">1</div> Areas</div>
-    <div style="width:24px;height:1px;background:var(--line)"></div>
-    <div class="step"><div class="dot ${setupStep===2?'active':''}">2</div> Tests</div>
-    <div style="width:24px;height:1px;background:var(--line)"></div>
-    <div class="step"><div class="dot ${setupStep===3?'active':''}">3</div> Review</div>
-  `;
-  p.appendChild(stepper);
-
-  // single body container; each step replaces its content
-  let body = byId("setupBody");
-  if (!body){ body = document.createElement("div"); body.id = "setupBody"; p.appendChild(body); }
-  body.innerHTML = ""; // clear before rendering the step
-
-  if(setupStep===1) setupAreas(body);
-  if(setupStep===2) setupTests(body);
-  if(setupStep===3) setupReview(body);
-}
-
-function setupAreas(container){
-  const card=document.createElement("div"); card.className="card";
-  card.innerHTML = `<h2>Choose focus areas</h2>
-    <p class="muted">Pick the domains you want to track weekly.</p>`;
-  const grid=document.createElement("div"); grid.className="grid3";
-  AREAS.forEach(a=>{
-    const wrap=document.createElement("div");
-    const b=document.createElement("button");
-    const on = state.areas.includes(a.id);
-    b.className="pill"; b.setAttribute("aria-pressed", on);
-    b.textContent=a.name;
-    b.onclick=()=>{
-      // update state and re-render WHOLE setup (prevents duplicate cards)
-      if(on){
-        state.areas = state.areas.filter(x=>x!==a.id);
-        if(!state.areas.length) state.areas=[a.id];
-        } else {
-        state.areas=[...state.areas, a.id];
-        }
-      save(); renderSetup();
-    };
-    wrap.appendChild(b);
-    grid.appendChild(wrap);
+function applyStateInvariants(state){
+  if(!state||typeof state!=="object") state={};
+  state.areas=Array.isArray(state.areas)?state.areas.filter(id=>AREA_MAP.has(id)):[];
+  if(!state.areas.length) state.areas=["wellbeing"];
+  state.areas=Array.from(new Set(state.areas));
+  if(typeof state.assigned!=="object"||state.assigned===null) state.assigned={};
+  AREAS.forEach(area=>{
+    const arr=Array.isArray(state.assigned[area.id])?state.assigned[area.id].filter(id=>{
+      const sc=SCALE_MAP.get(id);
+      return sc&&sc.area===area.id;
+    }):[];
+    state.assigned[area.id]=arr.length?Array.from(new Set(arr)):[...(DEFAULT_ASSIGN[area.id]||[])];
   });
-  card.appendChild(grid);
-
-  const row=document.createElement("div"); row.className="row";
-  const next=document.createElement("button"); next.className="btn primary"; next.textContent="Next: Choose Tests";
-  next.onclick=()=>{ setupStep=2; renderSetup(); };
-  row.appendChild(next);
-  card.appendChild(row);
-
-  container.appendChild(card);
+  if(!Array.isArray(state.data)) state.data=[];
+  state.data=state.data.filter(entry=>entry&&entry.scale&&(entry.week||entry.date)).map(entry=>{
+    const clone={...entry};
+    if(!clone.week&&clone.date) clone.week=isoWeekKey(new Date(clone.date));
+    clone.savedAt=clone.savedAt||todayISO();
+    return clone;
+  });
+  if(typeof state.meta!=="object"||state.meta===null) state.meta={};
+  if(!Array.isArray(state.journal)) state.journal=[];
+  state.journal=state.journal.map((entry,idx)=>normalizeJournalEntry(entry,idx)).filter(Boolean);
+  state.journal.sort((a,b)=>{
+    if(a.date===b.date) return (b.savedAt||"").localeCompare(a.savedAt||"");
+    return b.date.localeCompare(a.date);
+  });
+  return state;
 }
+const Storage={
+  KEY:STORE_KEY,
+  load(){
+    try{
+      const raw=JSON.parse(localStorage.getItem(this.KEY));
+      return this.normalize(raw);
+    }catch{
+      return this.normalize({});
+    }
+  },
+  save(state){ localStorage.setItem(this.KEY, JSON.stringify(state)); },
+  normalize(raw){
+    const base=raw&&typeof raw==="object"?{...raw}:{};
+    return applyStateInvariants(base);
+  }
+};
+const State=(()=>{
+  let data=Storage.load();
+  const listeners=new Set();
+  function notify(){ listeners.forEach(fn=>fn(data)); }
+  return {
+    get:()=>data,
+    mutate(fn){
+      fn(data);
+      applyStateInvariants(data);
+      Storage.save(data);
+      notify();
+    },
+    replace(raw){
+      data=Storage.normalize(raw);
+      Storage.save(data);
+      notify();
+    },
+    subscribe(fn){ listeners.add(fn); return ()=>listeners.delete(fn); }
+  };
+})();
 
-function setupTests(container){
-  const card=document.createElement("div"); card.className="card";
-  card.innerHTML = `<h2>Choose tests per area</h2>
-    <p class="muted">We preselect recommended tests. Toggle any you want to include weekly.</p>`;
-
-  state.areas.forEach(aid=>{
-    const areaCard=document.createElement("div"); areaCard.className="card"; areaCard.style.marginTop="10px";
-    const name = AREAS.find(x=>x.id===aid).name;
-    areaCard.innerHTML = `<strong>${name}</strong>`;
-
-    const controls=document.createElement("div"); controls.className="row";
-    const selectAll=document.createElement("button"); selectAll.className="btn ghost"; selectAll.textContent="Select All";
-    selectAll.onclick=()=>{ state.assigned[aid]=SCALES.filter(s=>s.area===aid).map(s=>s.id); save(); renderSetup(); };
-    const clear=document.createElement("button"); clear.className="btn ghost"; clear.textContent="Clear All";
-    clear.onclick=()=>{ state.assigned[aid]=[]; save(); renderSetup(); };
-    const restore=document.createElement("button"); restore.className="btn ghost"; restore.textContent="Restore Recommended";
-    restore.onclick=()=>{ state.assigned[aid]=[...(DEFAULT_ASSIGN[aid]||[])]; save(); renderSetup(); };
-    controls.appendChild(selectAll); controls.appendChild(clear); controls.appendChild(restore);
-    areaCard.appendChild(controls);
-
-    const chips=document.createElement("div");
-    const selected = new Set(state.assigned[aid]||[]);
-    SCALES.filter(s=>s.area===aid).forEach(s=>{
-      const chip=document.createElement("span");
-      chip.className = "chip" + (selected.has(s.id) ? " on" : "");
-      chip.textContent = s.title;
-      chip.onclick=()=>{
-        const set = new Set(state.assigned[aid]||[]);
-        if(set.has(s.id)) set.delete(s.id); else set.add(s.id);
-        state.assigned[aid]=Array.from(set);
-        save(); renderSetup();
-      };
-      chips.appendChild(chip);
+/* =========================
+   Derived Helpers
+   ========================= */
+const DataHelpers={
+  selectedScaleIds(){
+    const ids=new Set();
+    const state=State.get();
+    (state.areas||[]).forEach(area=>{
+      (state.assigned[area]||[]).forEach(id=>ids.add(id));
     });
-    areaCard.appendChild(chips);
-
-    card.appendChild(areaCard);
-  });
-
-  const row=document.createElement("div"); row.className="row"; row.style.marginTop="8px";
-  const back=document.createElement("button"); back.className="btn"; back.textContent="Back";
-  back.onclick=()=>{ setupStep=1; renderSetup(); };
-  const next=document.createElement("button"); next.className="btn primary"; next.textContent="Next: Review";
-  next.onclick=()=>{ setupStep=3; renderSetup(); };
-  row.appendChild(back); row.appendChild(next);
-  card.appendChild(row);
-
-  container.appendChild(card);
-}
-
-function setupReview(container){
-  const card=document.createElement("div"); card.className="card";
-  card.innerHTML = `<h2>Review & Save</h2>
-    <p class="muted">These tests will appear in your Weekly Check‑In each week.</p>`;
-  const table=document.createElement("table");
-  table.innerHTML=`<thead><tr><th>Area</th><th>Assigned tests</th></tr></thead><tbody></tbody>`;
-  const tb=table.querySelector("tbody");
-  state.areas.forEach(a=>{
-    const tr=document.createElement("tr");
-    const tests=(state.assigned[a]||[]).map(id=>SCALES.find(s=>s.id===id).title).join(", ");
-    tr.innerHTML=`<td>${AREAS.find(x=>x.id===a).name}</td><td>${tests||"<span class='muted'>None</span>"}</td>`;
-    tb.appendChild(tr);
-  });
-  card.appendChild(table);
-  const row=document.createElement("div"); row.className="row"; row.style.marginTop="8px";
-  const back=document.createElement("button"); back.className="btn"; back.textContent="Back";
-  back.onclick=()=>{ setupStep=2; renderSetup(); };
-  const saveBtn=document.createElement("button"); saveBtn.className="btn primary"; saveBtn.textContent="Save & Start Weekly Check‑In";
-  saveBtn.onclick=()=>{ save(); setView("checkin"); };
-  row.appendChild(back); row.appendChild(saveBtn);
-  card.appendChild(row);
-
-  const note=document.createElement("p"); note.className="small muted";
-  note.innerHTML = "Tip: You can edit assignments anytime in <strong>Setup</strong>. Data stays on this device.";
-  card.appendChild(note);
-  container.appendChild(card);
-}
+    return Array.from(ids);
+  },
+  upsertEntry(entry){
+    State.mutate(state=>{
+      const idx=state.data.findIndex(d=>d.week===entry.week&&d.scale===entry.scale);
+      if(idx>=0) state.data[idx]={...state.data[idx],...entry};
+      else state.data.push(entry);
+    });
+  },
+  seriesFor(scaleId){
+    return State.get().data.filter(d=>d.scale===scaleId).sort((a,b)=>a.week.localeCompare(b.week));
+  }
+};
 
 /* =========================
-   WEEKLY CHECK‑IN (unchanged behavior)
+   UI State
    ========================= */
-function selectedScaleIds(){
-  const ids=new Set();
-  (state.areas||[]).forEach(a=> (state.assigned[a]||[]).forEach(id=>ids.add(id)));
-  return Array.from(ids);
-}
-function upsertEntry(entry){
-  const i=state.data.findIndex(d=>d.week===entry.week && d.scale===entry.scale);
-  if(i>=0) state.data[i]=entry; else state.data.push(entry);
-  save();
-}
-function renderCheckin(){
-  const p=byId("panel"); p.innerHTML="";
-  const week = isoWeekKey(new Date());
-  const head=document.createElement("div"); head.className="row";
-  head.innerHTML = `<h2 style="margin:0">Weekly Check‑In</h2>`;
-  const wkWrap=document.createElement("div"); wkWrap.className="row";
-  wkWrap.innerHTML = `<label class="small">Week <input type="week" id="weekPick" value="${week}"></label>`;
-  const reset=document.createElement("button"); reset.className="btn ghost"; reset.textContent="Reset this week";
-  reset.onclick=()=>{ const w=weekKeyFromInput(byId("weekPick").value); if(confirm('Clear all responses for '+w+' ?')){ state.data=state.data.filter(d=>d.week!==w); save(); renderCheckin(); } };
-  wkWrap.appendChild(reset);
-  p.appendChild(head); p.appendChild(wkWrap);
+const UIState=(()=>{
+  let setupStep=1;
+  let currentArea=State.get().areas[0]||"wellbeing";
+  return {
+    get setupStep(){ return setupStep; },
+    set setupStep(step){ setupStep=step; },
+    nextSetup(){ if(setupStep<3) setupStep+=1; },
+    prevSetup(){ if(setupStep>1) setupStep-=1; },
+    ensureArea(){
+      const areas=State.get().areas;
+      if(!areas.includes(currentArea)) currentArea=areas[0]||"wellbeing";
+    },
+    get currentArea(){ this.ensureArea(); return currentArea; },
+    set currentArea(area){ currentArea=area; }
+  };
+})();
+State.subscribe(()=>UIState.ensureArea());
 
-  const prog=document.createElement("div"); prog.className="progress"; prog.innerHTML=`<div id="progFill" style="width:0%"></div>`;
-  const progText=document.createElement("div"); progText.className="small muted"; progText.id="progText"; progText.style.marginTop="6px"; progText.textContent="0 of 0 completed";
-  p.appendChild(prog); p.appendChild(progText);
+let renderCurrentView=()=>{};
+let goToView=()=>{};
 
-  const container=document.createElement("div"); container.id="queueContainer"; p.appendChild(container);
+/* =========================
+   Views
+   ========================= */
+const SetupView={
+  render(container){
+    const stepper=document.createElement("div"); stepper.className="stepper";
+    stepper.innerHTML=`
+      <div class="step"><div class="dot ${UIState.setupStep===1?'active':''}">1</div> Areas</div>
+      <div style="width:24px;height:1px;background:var(--line)"></div>
+      <div class="step"><div class="dot ${UIState.setupStep===2?'active':''}">2</div> Tests</div>
+      <div style="width:24px;height:1px;background:var(--line)"></div>
+      <div class="step"><div class="dot ${UIState.setupStep===3?'active':''}">3</div> Review</div>`;
+    container.appendChild(stepper);
 
-  function buildQueue(){
-    const w=weekKeyFromInput(byId("weekPick").value);
-    const all=selectedScaleIds();
-    const done=new Set(state.data.filter(d=>d.week===w).map(d=>d.scale));
-    const due=all.filter(id=>!done.has(id));
-    const pct = all.length? Math.round((all.length-due.length)/all.length*100):0;
-    byId("progFill").style.width=pct+"%";
-    byId("progText").textContent = `${all.length-due.length} of ${all.length} completed`;
-    container.innerHTML="";
-
-    if(all.length===0){
-      container.innerHTML = `<div class="overlay center"><div>
-        <h2>No tests are assigned</h2>
-        <p class="muted">Use <strong>Setup</strong> to choose areas and tests.</p>
-        <button class="btn primary" onclick="setView('setup')">Go to Setup</button>
-      </div></div>`;
-      return;
-    }
-    if(due.length===0){
-      container.innerHTML = `<div class="overlay center"><div>
-        <h2>🎉 NO MORE TESTS THIS WEEK</h2>
-        <p class="muted">Week <strong>${w}</strong> is complete.</p>
-        <div class="row center" style="justify-content:center">
-          <button class="btn" onclick="setView('dash')">View Dashboard</button>
-          <button class="btn" onclick="setView('corr')">See Correlations</button>
-          <button class="btn ghost" onclick="setView('setup')">Adjust Setup</button>
-        </div>
-      </div></div>`;
-      return;
-    }
-
-    const id=due[0]; const sc=SCALES.find(s=>s.id===id);
+    const body=document.createElement("div"); body.id="setupBody"; container.appendChild(body);
+    if(UIState.setupStep===1) this.renderAreas(body);
+    if(UIState.setupStep===2) this.renderTests(body);
+    if(UIState.setupStep===3) this.renderReview(body);
+  },
+  renderAreas(container){
     const card=document.createElement("div"); card.className="card";
-    card.innerHTML = `<div class="row"><h3 style="margin:0">${sc.title}</h3><span class="small muted">(${all.length-due.length+1} of ${all.length})</span></div>`;
-    const form=document.createElement("form");
-    sc.items.forEach((q,i)=>{
-      const item=document.createElement("div"); item.className="item";
-      const lab=document.createElement("label"); lab.textContent=`${i+1}. ${q}`; item.appendChild(lab);
-      const row=document.createElement("div"); row.className="row";
-      sc.choices.forEach(c=>{
-        const l=document.createElement("label"); l.className="small"; l.style.cursor="pointer";
-        l.innerHTML=`<input type="radio" name="${sc.id}_${i}" value="${c.v}" required> ${c.label}`;
-        row.appendChild(l);
-      });
-      item.appendChild(row); form.appendChild(item);
+    card.innerHTML=`<h2>Choose focus areas</h2><p class="muted">Pick the domains you want to track weekly.</p>`;
+    const grid=document.createElement("div"); grid.className="grid3";
+    const state=State.get();
+    AREAS.forEach(area=>{
+      const wrap=document.createElement("div");
+      const button=document.createElement("button");
+      const active=state.areas.includes(area.id);
+      button.className="pill"; button.setAttribute("aria-pressed",active);
+      button.textContent=area.name;
+      button.onclick=()=>{
+        State.mutate(s=>{
+          const idx=s.areas.indexOf(area.id);
+          if(idx>=0){
+            if(s.areas.length===1) return;
+            s.areas.splice(idx,1);
+          }else{
+            s.areas.push(area.id);
+          }
+        });
+        UIState.ensureArea();
+        renderCurrentView();
+      };
+      wrap.appendChild(button);
+      grid.appendChild(wrap);
     });
-    const actions=document.createElement("div"); actions.className="row";
-    const saveBtn=document.createElement("button"); saveBtn.type="submit"; saveBtn.className="btn primary"; saveBtn.textContent="Save & Continue";
-    actions.appendChild(saveBtn); 
-    form.appendChild(actions);
+    card.appendChild(grid);
 
-    form.onsubmit=(e)=>{
-      e.preventDefault();
-      const vals=sc.items.map((_,i)=>{ const el=form.querySelector(`input[name="${sc.id}_${i}"]:checked`); return el?Number(el.value):null; });
-      if(vals.some(v=>v===null)){ alert("Please answer all items."); return; }
-      const total=sc.score(vals);
-      upsertEntry({week:w, scale:sc.id, total, answers:vals, savedAt:todayISO()});
-      buildQueue(); // next item appears; this one disappears
-    };
+    const row=document.createElement("div"); row.className="row"; row.style.marginTop="12px";
+    const next=document.createElement("button"); next.className="btn primary"; next.textContent="Next: Choose Tests";
+    next.onclick=()=>{ UIState.nextSetup(); renderCurrentView(); };
+    row.appendChild(next);
+    card.appendChild(row);
+    container.appendChild(card);
+  },
+  renderTests(container){
+    const card=document.createElement("div"); card.className="card";
+    card.innerHTML=`<h2>Choose tests per area</h2><p class="muted">Toggle any assessments you want to include in your weekly check‑in.</p>`;
+    const state=State.get();
+    state.areas.forEach(areaId=>{
+      const areaCard=document.createElement("div"); areaCard.className="card"; areaCard.style.marginTop="10px";
+      areaCard.innerHTML=`<strong>${AREA_MAP.get(areaId).name}</strong>`;
 
-    card.appendChild(form);
+      const controls=document.createElement("div"); controls.className="row";
+      const selectAll=document.createElement("button"); selectAll.className="btn ghost"; selectAll.textContent="Select All";
+      selectAll.onclick=()=>{
+        State.mutate(s=>{ s.assigned[areaId]=SCALES.filter(sc=>sc.area===areaId).map(sc=>sc.id); });
+        renderCurrentView();
+      };
+      const clear=document.createElement("button"); clear.className="btn ghost"; clear.textContent="Clear All";
+      clear.onclick=()=>{
+        State.mutate(s=>{ s.assigned[areaId]=[]; });
+        renderCurrentView();
+      };
+      const restore=document.createElement("button"); restore.className="btn ghost"; restore.textContent="Restore Recommended";
+      restore.onclick=()=>{
+        State.mutate(s=>{ s.assigned[areaId]=[...(DEFAULT_ASSIGN[areaId]||[])]; });
+        renderCurrentView();
+      };
+      controls.appendChild(selectAll); controls.appendChild(clear); controls.appendChild(restore);
+      areaCard.appendChild(controls);
+
+      const chips=document.createElement("div");
+      const selected=new Set(state.assigned[areaId]||[]);
+      SCALES.filter(sc=>sc.area===areaId).forEach(sc=>{
+        const chip=document.createElement("span"); chip.className="chip"+(selected.has(sc.id)?" on":"");
+        chip.textContent=sc.title;
+        chip.onclick=()=>{
+          State.mutate(s=>{
+            const set=new Set(s.assigned[areaId]||[]);
+            if(set.has(sc.id)) set.delete(sc.id); else set.add(sc.id);
+            s.assigned[areaId]=Array.from(set);
+          });
+          renderCurrentView();
+        };
+        chips.appendChild(chip);
+      });
+      areaCard.appendChild(chips);
+      card.appendChild(areaCard);
+    });
+
+    const row=document.createElement("div"); row.className="row"; row.style.marginTop="12px";
+    const back=document.createElement("button"); back.className="btn"; back.textContent="Back"; back.onclick=()=>{ UIState.prevSetup(); renderCurrentView(); };
+    const next=document.createElement("button"); next.className="btn primary"; next.textContent="Next: Review"; next.onclick=()=>{ UIState.nextSetup(); renderCurrentView(); };
+    row.appendChild(back); row.appendChild(next);
+    card.appendChild(row);
+    container.appendChild(card);
+  },
+  renderReview(container){
+    const card=document.createElement("div"); card.className="card";
+    card.innerHTML=`<h2>Review & Save</h2><p class="muted">These tests will appear in your Weekly Check‑In each week.</p>`;
+    const table=document.createElement("table");
+    table.innerHTML=`<thead><tr><th>Area</th><th>Assigned tests</th></tr></thead><tbody></tbody>`;
+    const tbody=table.querySelector("tbody");
+    const state=State.get();
+    state.areas.forEach(area=>{
+      const tr=document.createElement("tr");
+      const tests=(state.assigned[area]||[]).map(id=>SCALE_MAP.get(id)?.title||id).join(", ");
+      tr.innerHTML=`<td>${AREA_MAP.get(area).name}</td><td>${tests||"<span class='muted'>None</span>"}</td>`;
+      tbody.appendChild(tr);
+    });
+    card.appendChild(table);
+
+    const row=document.createElement("div"); row.className="row"; row.style.marginTop="12px";
+    const back=document.createElement("button"); back.className="btn"; back.textContent="Back"; back.onclick=()=>{ UIState.prevSetup(); renderCurrentView(); };
+    const saveBtn=document.createElement("button"); saveBtn.className="btn primary"; saveBtn.textContent="Save & Start Weekly Check‑In";
+    saveBtn.onclick=()=>{ goToView("checkin"); };
+    row.appendChild(back); row.appendChild(saveBtn);
+    card.appendChild(row);
+
+    const note=document.createElement("p"); note.className="small muted";
+    note.innerHTML="Tip: You can edit assignments anytime in <strong>Setup</strong>. Data stays on this device.";
+    card.appendChild(note);
     container.appendChild(card);
   }
+};
 
-  buildQueue();
-  byId("weekPick").onchange=buildQueue;
-  setInterval(()=>{
-    const now=isoWeekKey(new Date());
-    const el=byId("weekPick");
-    if(el && el.value!==now){ el.value=now; buildQueue(); }
-  }, 60_000);
-}
-
-/* =========================
-   DASHBOARD
-   ========================= */
-function seriesFor(scaleId){ return state.data.filter(d=>d.scale===scaleId).sort((a,b)=>a.week.localeCompare(b.week)); }
-function renderDash(){
-  const p=byId("panel"); p.innerHTML="";
-  const tabs=document.createElement("div"); tabs.className="row";
-  (state.areas||[]).forEach(a=>{
-    const b=document.createElement("button"); b.className="pill"; b.setAttribute("aria-pressed", a===currentArea);
-    b.textContent=AREAS.find(x=>x.id===a).name;
-    b.onclick=()=>{ currentArea=a; renderDash(); };
-    tabs.appendChild(b);
-  });
-  p.appendChild(tabs);
-
-  const ids=(state.assigned[currentArea]||[]);
-  if(!ids.length){ p.innerHTML+=`<p class="muted">No tests assigned in this area. Use <strong>Setup</strong> to add some.</p>`; return; }
-
-  ids.forEach(id=>{
-    const sc=SCALES.find(s=>s.id===id);
-    const pts=seriesFor(id);
-    const max=sc.normMax || Math.max(1,...pts.map(p=>p.total));
-    const card=document.createElement("div"); card.className="card";
-    card.innerHTML=`<div class="row"><strong>${sc.title}</strong><span class="small muted"> (0–${sc.normMax})</span></div>`;
-    const bar=document.createElement("div"); bar.className="bar";
-    pts.forEach(p=>{ const d=document.createElement("div"); d.style.height=Math.max(2,Math.round(p.total/max*120))+"px"; d.title=`${p.week}: ${p.total}`; bar.appendChild(d); });
-    card.appendChild(bar);
-    const meta=document.createElement("div"); meta.className="small muted";
-    if(pts.length){ const last=pts.at(-1).total; const avg=(pts.reduce((a,b)=>a+b.total,0)/pts.length).toFixed(1); meta.textContent=`Last: ${last} · Avg: ${avg}`; } else { meta.textContent="No data yet."; }
-    card.appendChild(meta);
-    p.appendChild(card);
-  });
-}
-
-/* =========================
-   CORRELATIONS
-   ========================= */
-function renderCorr(){
-  const p=byId("panel"); p.innerHTML="";
-  const row=document.createElement("div"); row.className="row";
-  const areaSel=document.createElement("select");
-  (state.areas||[]).forEach(a=>{ const opt=document.createElement("option"); opt.value=a; opt.textContent=AREAS.find(x=>x.id===a).name; if(a===currentArea) opt.selected=true; areaSel.appendChild(opt); });
-  areaSel.onchange=()=>{ currentArea=areaSel.value; renderCorr(); };
-  row.innerHTML = `<h2 style="margin:0">Correlations</h2>`;
-  row.appendChild(areaSel); p.appendChild(row);
-
-  const ids=(state.assigned[currentArea]||[]);
-  if(ids.length<2){ p.innerHTML+=`<p class="muted">Assign at least two tests in this area to view correlations.</p>`; return; }
-
-  const table=document.createElement("table");
-  table.innerHTML=`<thead><tr><th>Pair</th><th>r (all)</th><th>r (last 8)</th><th>r (last 4)</th></tr></thead><tbody id="corrBody"></tbody>`;
-  p.appendChild(table);
-  const body=byId("corrBody");
-
-  function alignedTotals(aId,bId){
-    const A=seriesFor(aId), B=seriesFor(bId);
-    const mb=new Map(B.map(x=>[x.week,x.total]));
-    const a=[],b=[];
-    A.forEach(x=>{ if(mb.has(x.week)){ a.push(x.total); b.push(mb.get(x.week)); }});
-    return [a,b];
+const CheckinView=(()=>{
+  let weekWatcher=null;
+  function ensureWatcher(weekInput,buildQueue){
+    if(weekWatcher) clearInterval(weekWatcher);
+    weekWatcher=setInterval(()=>{
+      const now=isoWeekKey(new Date());
+      if(weekInput.value!==now){ weekInput.value=now; buildQueue(); }
+    },60_000);
   }
-  function z(arr){ const m=arr.reduce((s,x)=>s+x,0)/arr.length; const sd=Math.sqrt(arr.reduce((s,x)=>s+(x-m)**2,0)/(arr.length||1)); return arr.map(x=> sd? (x-m)/sd : 0); }
-  function corr(a,b){ if(a.length!==b.length||a.length<2) return null; const za=z(a), zb=z(b); return za.reduce((s,ai,i)=>s+ai*zb[i],0)/(za.length||1); }
+  return {
+    render(container){
+      const week=isoWeekKey(new Date());
+      const head=document.createElement("div"); head.className="row";
+      head.innerHTML=`<h2 style="margin:0">Weekly Check‑In</h2>`;
+      const pickerWrap=document.createElement("div"); pickerWrap.className="row";
+      const label=document.createElement("label"); label.className="small"; label.textContent="Week ";
+      const weekInput=document.createElement("input"); weekInput.type="week"; weekInput.value=week; weekInput.id="weekPick";
+      label.appendChild(weekInput);
+      const reset=document.createElement("button"); reset.className="btn ghost"; reset.textContent="Reset this week";
+      reset.onclick=()=>{
+        const targetWeek=weekKeyFromInput(weekInput.value);
+        if(confirm(`Clear all responses for ${targetWeek}?`)){
+          State.mutate(state=>{ state.data=state.data.filter(d=>d.week!==targetWeek); });
+          buildQueue();
+        }
+      };
+      pickerWrap.appendChild(label); pickerWrap.appendChild(reset);
+      container.appendChild(head); container.appendChild(pickerWrap);
 
-  const ref=ids[0];
-  ids.slice(1).forEach(other=>{
-    const [A,B]=alignedTotals(ref,other);
-    const all=corr(A,B), last8=corr(A.slice(-8),B.slice(-8)), last4=corr(A.slice(-4),B.slice(-4));
-    const tr=document.createElement("tr");
-    tr.innerHTML=`<td>${SCALES.find(s=>s.id===ref).title} ↔ ${SCALES.find(s=>s.id===other).title}</td>
-                  <td>${all==null?"–":all.toFixed(2)}</td>
-                  <td>${last8==null?"–":last8.toFixed(2)}</td>
-                  <td>${last4==null?"–":last4.toFixed(2)}</td>`;
-    body.appendChild(tr);
-  });
+      const prog=document.createElement("div"); prog.className="progress"; prog.innerHTML=`<div id="progFill" style="width:0%"></div>`;
+      const progText=document.createElement("div"); progText.className="small muted"; progText.id="progText"; progText.style.marginTop="6px"; progText.textContent="0 of 0 completed";
+      container.appendChild(prog); container.appendChild(progText);
+
+      const queueContainer=document.createElement("div"); queueContainer.id="queueContainer"; container.appendChild(queueContainer);
+
+      const buildQueue=()=>{
+        const state=State.get();
+        const w=weekKeyFromInput(weekInput.value);
+        const all=DataHelpers.selectedScaleIds();
+        const done=new Set(state.data.filter(d=>d.week===w).map(d=>d.scale));
+        const due=all.filter(id=>!done.has(id));
+        const pct=all.length?Math.round((all.length-due.length)/all.length*100):0;
+        byId("progFill").style.width=pct+"%";
+        progText.textContent=`${all.length-due.length} of ${all.length} completed`;
+        queueContainer.innerHTML="";
+
+        if(all.length===0){
+          queueContainer.innerHTML=`<div class="overlay center"><div>
+            <h2>No tests are assigned</h2>
+            <p class="muted">Use <strong>Setup</strong> to choose areas and tests.</p>
+            <button class="btn primary" onclick="return false;">Go to Setup</button>
+          </div></div>`;
+          const btn=queueContainer.querySelector("button");
+          if(btn) btn.onclick=()=>goToView("setup");
+          return;
+        }
+        if(due.length===0){
+          queueContainer.innerHTML=`<div class="overlay center"><div>
+            <h2>🎉 All caught up</h2>
+            <p class="muted">Week <strong>${w}</strong> is complete.</p>
+            <div class="row center" style="justify-content:center">
+              <button class="btn" data-nav="dash">View Dashboard</button>
+              <button class="btn" data-nav="corr">See Correlations</button>
+              <button class="btn ghost" data-nav="setup">Adjust Setup</button>
+            </div>
+          </div></div>`;
+          queueContainer.querySelectorAll("button[data-nav]").forEach(btn=>{
+            btn.onclick=()=>goToView(btn.dataset.nav);
+          });
+          return;
+        }
+
+        const id=due[0];
+        const sc=SCALE_MAP.get(id);
+        const card=document.createElement("div"); card.className="card";
+        card.innerHTML=`<div class="row"><h3 style="margin:0">${sc.title}</h3><span class="small muted">(${all.length-due.length+1} of ${all.length})</span></div>`;
+        const form=document.createElement("form");
+        sc.items.forEach((q,i)=>{
+          const item=document.createElement("div"); item.className="item";
+          const lab=document.createElement("label"); lab.textContent=`${i+1}. ${q}`; item.appendChild(lab);
+          const row=document.createElement("div"); row.className="row";
+          sc.choices.forEach(choice=>{
+            const l=document.createElement("label"); l.className="small"; l.style.cursor="pointer";
+            l.innerHTML=`<input type="radio" name="${sc.id}_${i}" value="${choice.v}" required> ${choice.label}`;
+            row.appendChild(l);
+          });
+          item.appendChild(row);
+          form.appendChild(item);
+        });
+        const actions=document.createElement("div"); actions.className="row";
+        const saveBtn=document.createElement("button"); saveBtn.type="submit"; saveBtn.className="btn primary"; saveBtn.textContent="Save & Continue";
+        actions.appendChild(saveBtn); form.appendChild(actions);
+
+        form.onsubmit=e=>{
+          e.preventDefault();
+          const vals=sc.items.map((_,i)=>{
+            const el=form.querySelector(`input[name="${sc.id}_${i}"]:checked`);
+            return el?Number(el.value):null;
+          });
+          if(vals.some(v=>v===null)){ alert("Please answer all items."); return; }
+          const total=sc.score(vals);
+          DataHelpers.upsertEntry({week:w, scale:sc.id, total, answers:vals, savedAt:new Date().toISOString()});
+          buildQueue();
+        };
+
+        card.appendChild(form);
+        queueContainer.appendChild(card);
+      };
+
+      buildQueue();
+      weekInput.onchange=buildQueue;
+      ensureWatcher(weekInput,buildQueue);
+    }
+  };
+})();
+
+const DashboardView={
+  render(container){
+    const state=State.get();
+    const tabs=document.createElement("div"); tabs.className="row";
+    (state.areas||[]).forEach(area=>{
+      const btn=document.createElement("button"); btn.className="pill"; btn.setAttribute("aria-pressed", area===UIState.currentArea);
+      btn.textContent=AREA_MAP.get(area).name;
+      btn.onclick=()=>{ UIState.currentArea=area; renderCurrentView(); };
+      tabs.appendChild(btn);
+    });
+    container.appendChild(tabs);
+
+    const ids=state.assigned[UIState.currentArea]||[];
+    if(!ids.length){
+      const msg=document.createElement("p"); msg.className="muted"; msg.innerHTML="No tests assigned in this area. Use <strong>Setup</strong> to add some.";
+      container.appendChild(msg);
+      return;
+    }
+
+    ids.forEach(id=>{
+      const sc=SCALE_MAP.get(id);
+      const pts=DataHelpers.seriesFor(id);
+      const max=sc.normMax||Math.max(1,...pts.map(p=>p.total));
+      const card=document.createElement("div"); card.className="card";
+      card.innerHTML=`<div class="row"><strong>${sc.title}</strong><span class="small muted"> (0–${sc.normMax})</span></div>`;
+      const bar=document.createElement("div"); bar.className="bar";
+      pts.forEach(p=>{
+        const d=document.createElement("div");
+        d.style.height=Math.max(2,Math.round(p.total/max*120))+"px";
+        d.title=`${p.week}: ${p.total}`;
+        bar.appendChild(d);
+      });
+      card.appendChild(bar);
+      const meta=document.createElement("div"); meta.className="small muted";
+      if(pts.length){
+        const last=pts.at(-1).total;
+        const avg=(pts.reduce((a,b)=>a+b.total,0)/pts.length).toFixed(1);
+        meta.textContent=`Last: ${last} · Avg: ${avg}`;
+      }else{
+        meta.textContent="No data yet.";
+      }
+      card.appendChild(meta);
+      container.appendChild(card);
+    });
+  }
+};
+
+const CorrView={
+  render(container){
+    const state=State.get();
+    const row=document.createElement("div"); row.className="row";
+    const areaSel=document.createElement("select");
+    (state.areas||[]).forEach(area=>{
+      const opt=document.createElement("option"); opt.value=area; opt.textContent=AREA_MAP.get(area).name; if(area===UIState.currentArea) opt.selected=true; areaSel.appendChild(opt);
+    });
+    areaSel.onchange=()=>{ UIState.currentArea=areaSel.value; renderCurrentView(); };
+    const heading=document.createElement("h2"); heading.style.margin="0"; heading.textContent="Correlations";
+    row.appendChild(heading); row.appendChild(areaSel); container.appendChild(row);
+
+    const ids=(state.assigned[UIState.currentArea]||[]);
+    if(ids.length<2){
+      const msg=document.createElement("p"); msg.className="muted"; msg.innerHTML="Assign at least two tests in this area to view correlations.";
+      container.appendChild(msg);
+      return;
+    }
+
+    const table=document.createElement("table");
+    table.innerHTML=`<thead><tr><th>Pair</th><th>r (all)</th><th>r (last 8)</th><th>r (last 4)</th></tr></thead><tbody></tbody>`;
+    const body=table.querySelector("tbody");
+
+    function alignedTotals(aId,bId){
+      const A=DataHelpers.seriesFor(aId), B=DataHelpers.seriesFor(bId);
+      const mapB=new Map(B.map(x=>[x.week,x.total]));
+      const a=[],b=[];
+      A.forEach(x=>{ if(mapB.has(x.week)){ a.push(x.total); b.push(mapB.get(x.week)); }});
+      return [a,b];
+    }
+    function z(arr){ const m=arr.reduce((s,x)=>s+x,0)/arr.length; const sd=Math.sqrt(arr.reduce((s,x)=>s+(x-m)**2,0)/(arr.length||1)); return arr.map(x=> sd? (x-m)/sd : 0); }
+    function corr(a,b){ if(a.length!==b.length||a.length<2) return null; const za=z(a), zb=z(b); return za.reduce((s,ai,i)=>s+ai*zb[i],0)/(za.length||1); }
+
+    const ref=ids[0];
+    ids.slice(1).forEach(other=>{
+      const [A,B]=alignedTotals(ref,other);
+      const all=corr(A,B), last8=corr(A.slice(-8),B.slice(-8)), last4=corr(A.slice(-4),B.slice(-4));
+      const tr=document.createElement("tr");
+      tr.innerHTML=`<td>${SCALE_MAP.get(ref).title} ↔ ${SCALE_MAP.get(other).title}</td>
+                    <td>${all==null?"–":all.toFixed(2)}</td>
+                    <td>${last8==null?"–":last8.toFixed(2)}</td>
+                    <td>${last4==null?"–":last4.toFixed(2)}</td>`;
+      body.appendChild(tr);
+    });
+    container.appendChild(table);
+  }
+};
+
+function computeJournalStats(entries){
+  const moods=entries.filter(e=>typeof e.mood==="number");
+  const last7=moods.slice(0,7);
+  const avg7=last7.length? (last7.reduce((s,e)=>s+e.mood,0)/last7.length).toFixed(1):null;
+  const sessionCount=entries.filter(e=>e.type==="session").length;
+  return {total:entries.length, avg7, sessionCount, moodsLogged:moods.length};
+}
+function moodBadgeClass(mood){ if(typeof mood!=="number") return "mid"; if(mood<=4) return "low"; if(mood<=7) return "mid"; return "high"; }
+function describeEntryType(type){
+  switch(type){
+    case "session": return "Session / Protocol";
+    case "general": return "General Note";
+    default: return "Mood Check-In";
+  }
 }
 
-/* =========================
-   DATA (export/import)
-   ========================= */
-function renderData(){
-  const p=byId("panel"); p.innerHTML="";
-  const card=document.createElement("div"); card.className="card";
-  card.innerHTML=`<h2>Data</h2><p class="muted small">Export to back up. Import to restore. Local storage key: <code>${STORE_KEY}</code>.</p>`;
-  const row=document.createElement("div"); row.className="row"; 
-  const exp=document.createElement("button"); exp.className="btn"; exp.textContent="Export JSON";
-  exp.onclick=()=>{ const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`nspsycho_${todayISO()}.json`; a.click(); };
-  const impLabel=document.createElement("label"); impLabel.className="btn ghost"; impLabel.textContent="Import JSON";
-  const imp=document.createElement("input"); imp.type="file"; imp.accept=".json"; imp.style.display="none";
-  imp.onchange=e=>{
-    const f=e.target.files[0]; if(!f) return; const r=new FileReader();
-    r.onload=()=>{ try{ const incoming=JSON.parse(r.result); if(incoming && incoming.data){ state=incoming; save(); renderData(); alert("Imported."); } else { alert("Invalid file."); } } catch{ alert("Invalid JSON."); } };
-    r.readAsText(f);
-  };
-  impLabel.appendChild(imp);
-  const clear=document.createElement("button"); clear.className="btn ghost"; clear.textContent="Clear ALL data";
-  clear.onclick=()=>{ if(confirm("This clears ALL local data. Proceed?")){ localStorage.removeItem(STORE_KEY); state=load(); AREAS.forEach(a=>{ if(!state.assigned[a.id]) state.assigned[a.id]=DEFAULT_ASSIGN[a.id]||[]; }); save(); setView("setup"); } };
-  row.appendChild(exp); row.appendChild(impLabel); row.appendChild(clear);
-  card.appendChild(row);
+const JournalView=(()=>{
+  const filters={type:"all",search:""};
+  function renderList(container,summary,resultsInfo){
+    const entries=State.get().journal;
+    const query=filters.search.trim().toLowerCase();
+    const filtered=entries.filter(entry=>{
+      if(filters.type!=="all" && entry.type!==filters.type) return false;
+      if(query){
+        const haystack=[entry.title,entry.notes,entry.protocol,entry.effects,entry.tags.join(" ")].join(" \n").toLowerCase();
+        if(!haystack.includes(query)) return false;
+      }
+      return true;
+    });
 
-  const t=document.createElement("table");
-  t.innerHTML=`<thead><tr><th>Week</th><th>Scale</th><th>Score</th><th>Actions</th></tr></thead><tbody></tbody>`;
-  const tb=t.querySelector("tbody");
-  state.data.sort((a,b)=>a.week.localeCompare(b.week)).forEach((d,i)=>{
-    const sc=SCALES.find(s=>s.id===d.scale);
-    const tr=document.createElement("tr");
-    tr.innerHTML=`<td>${d.week}</td><td>${sc?sc.title:d.scale}</td><td>${d.total}</td><td><button class="btn small" data-i="${i}">Delete</button></td>`;
-    tb.appendChild(tr);
+    const stats=computeJournalStats(entries);
+    if(summary){
+      summary.textContent = stats.total
+        ? `Logged ${stats.total} entries • Mood avg (last 7): ${stats.avg7??"–"} • Protocol sessions: ${stats.sessionCount}`
+        : "No entries yet. Start by logging your first mood or reflection.";
+    }
+    if(resultsInfo){
+      resultsInfo.textContent = filtered.length===entries.length
+        ? `${filtered.length} entries`
+        : `Showing ${filtered.length} of ${entries.length} entries`;
+    }
+
+    container.innerHTML="";
+    if(!filtered.length){
+      const empty=document.createElement("div"); empty.className="journal-empty"; empty.textContent="Nothing logged with the current filters.";
+      container.appendChild(empty);
+      return;
+    }
+
+    filtered.forEach(entry=>{
+      const card=document.createElement("div"); card.className="journal-entry";
+
+      const header=document.createElement("div"); header.className="row"; header.style.justifyContent="space-between";
+      const left=document.createElement("div"); left.className="stack"; left.style.gap="4px";
+      const date=document.createElement("strong"); date.textContent=toDisplayDate(entry.date);
+      const sub=document.createElement("div"); sub.className="row"; sub.style.gap="6px";
+      const typeBadge=document.createElement("span"); typeBadge.className="badge"; typeBadge.textContent=describeEntryType(entry.type);
+      sub.appendChild(typeBadge);
+      if(entry.mood!==null && entry.mood!==undefined){
+        const mood=document.createElement("span"); mood.className=`mood-badge ${moodBadgeClass(entry.mood)}`;
+        mood.textContent=`Mood ${entry.mood}/10`;
+        sub.appendChild(mood);
+      }
+      left.appendChild(date); left.appendChild(sub);
+      header.appendChild(left);
+
+      const actionsWrap=document.createElement("div"); actionsWrap.className="row"; actionsWrap.style.gap="6px";
+      const time=document.createElement("span"); time.className="small muted"; time.textContent=`Logged ${toDisplayDateTime(entry.savedAt)}`;
+      actionsWrap.appendChild(time);
+      const del=document.createElement("button"); del.className="btn ghost small"; del.textContent="Delete";
+      del.onclick=()=>{
+        if(confirm("Delete this journal entry?")){
+          State.mutate(state=>{ state.journal=state.journal.filter(e=>e.id!==entry.id); });
+          renderList(container,summary,resultsInfo);
+        }
+      };
+      actionsWrap.appendChild(del);
+      header.appendChild(actionsWrap);
+      card.appendChild(header);
+
+      const title=document.createElement("h3"); title.textContent=entry.title||describeEntryType(entry.type);
+      card.appendChild(title);
+
+      if(entry.type==="session" && entry.protocol){
+        const field=document.createElement("div"); field.className="journal-field";
+        const strong=document.createElement("strong"); strong.textContent="Protocol";
+        const val=document.createElement("div"); val.textContent=entry.protocol;
+        field.appendChild(strong); field.appendChild(val); card.appendChild(field);
+      }
+      if(entry.type==="session" && entry.effects){
+        const field=document.createElement("div"); field.className="journal-field";
+        const strong=document.createElement("strong"); strong.textContent="Effects & observations";
+        const val=document.createElement("div"); val.textContent=entry.effects;
+        field.appendChild(strong); field.appendChild(val); card.appendChild(field);
+      }
+      if(entry.notes){
+        const note=document.createElement("div"); note.className="note-text"; note.textContent=entry.notes;
+        card.appendChild(note);
+      }
+      if(entry.tags && entry.tags.length){
+        const tags=document.createElement("div"); tags.className="journal-tags";
+        entry.tags.forEach(tag=>{ const span=document.createElement("span"); span.className="tag"; span.textContent=tag; tags.appendChild(span); });
+        card.appendChild(tags);
+      }
+
+      container.appendChild(card);
+    });
+  }
+  return {
+    render(container){
+      const header=document.createElement("div"); header.className="stack";
+      const title=document.createElement("h2"); title.textContent="Journaling";
+      const intro=document.createElement("p"); intro.className="muted"; intro.textContent="Log mood check-ins, sessions, and reflections to see how your wellbeing evolves over time.";
+      header.appendChild(title); header.appendChild(intro);
+      container.appendChild(header);
+
+      const formCard=document.createElement("div"); formCard.className="card stack";
+      const formTitle=document.createElement("h3"); formTitle.textContent="Add an entry"; formCard.appendChild(formTitle);
+      const form=document.createElement("form"); form.className="stack"; form.style.gap="10px";
+
+      const dateLabel=document.createElement("label"); dateLabel.textContent="Entry date";
+      const dateInput=document.createElement("input"); dateInput.type="date"; dateInput.value=todayISO();
+      dateLabel.appendChild(dateInput); form.appendChild(dateLabel);
+
+      const typeLabel=document.createElement("label"); typeLabel.textContent="Entry type";
+      const typeSelect=document.createElement("select");
+      [{value:"mood",label:"Mood check-in"},{value:"session",label:"Session / protocol"},{value:"general",label:"General reflection"}]
+        .forEach(opt=>{ const option=document.createElement("option"); option.value=opt.value; option.textContent=opt.label; typeSelect.appendChild(option); });
+      typeLabel.appendChild(typeSelect); form.appendChild(typeLabel);
+
+      const moodWrap=document.createElement("div"); moodWrap.className="stack"; moodWrap.style.gap="6px";
+      const moodRow=document.createElement("div"); moodRow.className="row"; moodRow.style.alignItems="center";
+      const moodToggle=document.createElement("input"); moodToggle.type="checkbox"; moodToggle.checked=true; moodToggle.id="moodToggle";
+      const moodToggleLabel=document.createElement("label"); moodToggleLabel.className="small"; moodToggleLabel.setAttribute("for","moodToggle"); moodToggleLabel.textContent="Include mood rating";
+      moodRow.appendChild(moodToggle); moodRow.appendChild(moodToggleLabel);
+      moodWrap.appendChild(moodRow);
+      const sliderRow=document.createElement("div"); sliderRow.className="row";
+      const moodInput=document.createElement("input"); moodInput.type="range"; moodInput.min="1"; moodInput.max="10"; moodInput.value="5";
+      const moodValue=document.createElement("span"); moodValue.className="badge"; moodValue.textContent="5 / 10";
+      sliderRow.appendChild(moodInput); sliderRow.appendChild(moodValue);
+      moodWrap.appendChild(sliderRow);
+      form.appendChild(moodWrap);
+      const toggleMood=()=>{
+        moodInput.disabled=!moodToggle.checked;
+        moodValue.textContent = moodToggle.checked ? `${moodInput.value} / 10` : "Not recorded";
+      };
+      moodToggle.onchange=toggleMood;
+      moodInput.oninput=()=>{ moodValue.textContent=`${moodInput.value} / 10`; };
+      toggleMood();
+
+      const titleLabel=document.createElement("label"); titleLabel.textContent="Title or short summary";
+      const titleInput=document.createElement("input"); titleInput.type="text"; titleInput.placeholder="Optional";
+      titleLabel.appendChild(titleInput); form.appendChild(titleLabel);
+
+      const sessionWrap=document.createElement("div"); sessionWrap.className="stack"; sessionWrap.style.gap="10px";
+      const protocolLabel=document.createElement("label"); protocolLabel.textContent="Protocol or focus";
+      const protocolInput=document.createElement("input"); protocolInput.type="text"; protocolInput.placeholder="e.g. Alpha uptrain";
+      protocolLabel.appendChild(protocolInput);
+      const effectsLabel=document.createElement("label"); effectsLabel.textContent="Immediate effects";
+      const effectsInput=document.createElement("textarea"); effectsInput.rows=3; effectsInput.placeholder="What did you notice during or after the session?";
+      effectsLabel.appendChild(effectsInput);
+      sessionWrap.appendChild(protocolLabel); sessionWrap.appendChild(effectsLabel);
+      form.appendChild(sessionWrap);
+
+      const notesLabel=document.createElement("label"); notesLabel.textContent="Notes";
+      const notesInput=document.createElement("textarea"); notesInput.rows=4; notesInput.placeholder="Feelings, wins, triggers, gratitude…";
+      notesLabel.appendChild(notesInput); form.appendChild(notesLabel);
+
+      const tagsLabel=document.createElement("label"); tagsLabel.textContent="Tags (comma separated)";
+      const tagsInput=document.createElement("input"); tagsInput.type="text"; tagsInput.placeholder="sleep, focus, gratitude";
+      tagsLabel.appendChild(tagsInput); form.appendChild(tagsLabel);
+
+      const saveRow=document.createElement("div"); saveRow.className="row";
+      const saveBtn=document.createElement("button"); saveBtn.type="submit"; saveBtn.className="btn primary"; saveBtn.textContent="Save entry";
+      saveRow.appendChild(saveBtn);
+      form.appendChild(saveRow);
+
+      const toggleSessionFields=()=>{
+        sessionWrap.style.display = typeSelect.value==="session"?"flex":"none";
+      };
+      typeSelect.onchange=toggleSessionFields;
+      toggleSessionFields();
+
+      form.onsubmit=e=>{
+        e.preventDefault();
+        const entry={
+          id:makeId("journal"),
+          date:dateInput.value||todayISO(),
+          type:typeSelect.value,
+          title:titleInput.value.trim(),
+          notes:notesInput.value.trim(),
+          protocol:typeSelect.value==="session"?protocolInput.value.trim():"",
+          effects:typeSelect.value==="session"?effectsInput.value.trim():"",
+          mood:moodToggle.checked?Number(moodInput.value):null,
+          tags:parseTags(tagsInput.value),
+          savedAt:new Date().toISOString()
+        };
+        State.mutate(state=>{ state.journal.unshift(entry); });
+        dateInput.value=todayISO();
+        typeSelect.value="mood";
+        titleInput.value="";
+        notesInput.value="";
+        protocolInput.value="";
+        effectsInput.value="";
+        tagsInput.value="";
+        moodInput.value="5";
+        moodToggle.checked=true;
+        toggleMood();
+        toggleSessionFields();
+        renderList(listContainer,summary,resultsInfo);
+      };
+
+      formCard.appendChild(form);
+      container.appendChild(formCard);
+
+      const logCard=document.createElement("div"); logCard.className="card";
+      const logHeader=document.createElement("div"); logHeader.className="row"; logHeader.style.justifyContent="space-between";
+      const logTitle=document.createElement("h3"); logTitle.style.margin="0"; logTitle.textContent="Journal history";
+      const summary=document.createElement("div"); summary.className="small muted";
+      logHeader.appendChild(logTitle); logHeader.appendChild(summary);
+      logCard.appendChild(logHeader);
+
+      const filtersRow=document.createElement("div"); filtersRow.className="journal-filters";
+      const typeFilterLabel=document.createElement("label"); typeFilterLabel.textContent="Type";
+      const typeFilter=document.createElement("select");
+      [{value:"all",label:"All entries"},{value:"mood",label:"Mood check-ins"},{value:"session",label:"Sessions"},{value:"general",label:"General notes"}]
+        .forEach(opt=>{ const option=document.createElement("option"); option.value=opt.value; option.textContent=opt.label; if(opt.value===filters.type) option.selected=true; typeFilter.appendChild(option); });
+      typeFilter.onchange=()=>{ filters.type=typeFilter.value; renderList(listContainer,summary,resultsInfo); };
+      typeFilterLabel.appendChild(typeFilter); filtersRow.appendChild(typeFilterLabel);
+
+      const searchLabel=document.createElement("label"); searchLabel.textContent="Search";
+      const searchInput=document.createElement("input"); searchInput.type="search"; searchInput.placeholder="mood, focus, tag…"; searchInput.value=filters.search;
+      searchInput.oninput=()=>{ filters.search=searchInput.value; renderList(listContainer,summary,resultsInfo); };
+      searchLabel.appendChild(searchInput); filtersRow.appendChild(searchLabel);
+      logCard.appendChild(filtersRow);
+
+      const resultsInfo=document.createElement("div"); resultsInfo.className="small muted"; resultsInfo.style.marginBottom="8px";
+      logCard.appendChild(resultsInfo);
+
+      const listContainer=document.createElement("div"); logCard.appendChild(listContainer);
+      container.appendChild(logCard);
+
+      renderList(listContainer,summary,resultsInfo);
+    }
+  };
+})();
+
+const DataView={
+  render(container){
+    const card=document.createElement("div"); card.className="card";
+    card.innerHTML=`<h2>Data</h2><p class="muted small">Export to back up. Import to restore. Local storage key: <code>${STORE_KEY}</code>.</p>`;
+    const row=document.createElement("div"); row.className="row";
+    const exp=document.createElement("button"); exp.className="btn"; exp.textContent="Export JSON";
+    exp.onclick=()=>{
+      const blob=new Blob([JSON.stringify(State.get(),null,2)],{type:"application/json"});
+      const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`nspsycho_${todayISO()}.json`; a.click();
+    };
+    const impLabel=document.createElement("label"); impLabel.className="btn ghost"; impLabel.textContent="Import JSON";
+    const imp=document.createElement("input"); imp.type="file"; imp.accept=".json"; imp.style.display="none";
+    imp.onchange=e=>{
+      const f=e.target.files[0]; if(!f) return;
+      const r=new FileReader();
+      r.onload=()=>{
+        try{
+          const incoming=JSON.parse(r.result);
+          if(incoming&&typeof incoming==="object"){
+            State.replace(incoming);
+            alert("Imported.");
+            renderCurrentView();
+          }else{ alert("Invalid file."); }
+        }catch{ alert("Invalid JSON."); }
+      };
+      r.readAsText(f);
+    };
+    impLabel.appendChild(imp);
+    const clear=document.createElement("button"); clear.className="btn ghost"; clear.textContent="Clear ALL data";
+    clear.onclick=()=>{
+      if(confirm("This clears ALL local data. Proceed?")){
+        localStorage.removeItem(STORE_KEY);
+        State.replace({});
+        goToView("setup");
+      }
+    };
+    row.appendChild(exp); row.appendChild(impLabel); row.appendChild(clear);
+    card.appendChild(row);
+
+    const entries=[...State.get().data].sort((a,b)=>a.week.localeCompare(b.week)||a.scale.localeCompare(b.scale));
+    const table=document.createElement("table");
+    table.innerHTML=`<thead><tr><th>Week</th><th>Scale</th><th>Score</th><th>Actions</th></tr></thead><tbody></tbody>`;
+    const tb=table.querySelector("tbody");
+    entries.forEach(entry=>{
+      const sc=SCALE_MAP.get(entry.scale);
+      const tr=document.createElement("tr");
+      tr.innerHTML=`<td>${entry.week}</td><td>${sc?sc.title:entry.scale}</td><td>${entry.total}</td><td><button class="btn small ghost" data-week="${entry.week}" data-scale="${entry.scale}">Delete</button></td>`;
+      tb.appendChild(tr);
+    });
+    table.onclick=e=>{
+      if(e.target.tagName==="BUTTON"){
+        const week=e.target.dataset.week;
+        const scale=e.target.dataset.scale;
+        if(confirm("Delete this entry?")){
+          State.mutate(state=>{ state.data=state.data.filter(d=>!(d.week===week&&d.scale===scale)); });
+          renderCurrentView();
+        }
+      }
+    };
+    card.appendChild(table);
+
+    const journalEntries=State.get().journal;
+    const journalTable=document.createElement("table");
+    journalTable.style.marginTop="20px";
+    journalTable.innerHTML=`<thead><tr><th>Date</th><th>Type</th><th>Mood</th><th>Title</th><th>Tags</th><th>Actions</th></tr></thead><tbody></tbody>`;
+    const jt=journalTable.querySelector("tbody");
+    journalEntries.forEach(entry=>{
+      const tr=document.createElement("tr");
+      tr.innerHTML=`<td>${entry.date}</td><td>${describeEntryType(entry.type)}</td><td>${entry.mood??"–"}</td><td>${entry.title||"—"}</td><td>${entry.tags.join(", ")}</td><td><button class="btn small ghost" data-journal="${entry.id}">Delete</button></td>`;
+      jt.appendChild(tr);
+    });
+    journalTable.onclick=e=>{
+      if(e.target.tagName==="BUTTON"){
+        const id=e.target.dataset.journal;
+        if(confirm("Delete this journal entry?")){
+          State.mutate(state=>{ state.journal=state.journal.filter(entry=>entry.id!==id); });
+          renderCurrentView();
+        }
+      }
+    };
+    card.appendChild(journalTable);
+
+    container.appendChild(card);
+  }
+};
+
+const Views={
+  setup:SetupView,
+  checkin:CheckinView,
+  dash:DashboardView,
+  journal:JournalView,
+  corr:CorrView,
+  data:DataView
+};
+
+/* =========================
+   Router & Boot
+   ========================= */
+const Router=(()=>{
+  let current="setup";
+  const panel=byId("panel");
+  const navButtons={
+    setup:byId("nav-setup"),
+    checkin:byId("nav-checkin"),
+    dash:byId("nav-dash"),
+    journal:byId("nav-journal"),
+    corr:byId("nav-corr"),
+    data:byId("nav-data")
+  };
+  Object.entries(navButtons).forEach(([id,btn])=>{
+    if(btn) btn.onclick=()=>set(id);
   });
-  t.onclick=e=>{
-    if(e.target.tagName==="BUTTON"){ const idx=Number(e.target.dataset.i); if(confirm("Delete this entry?")){ state.data.splice(idx,1); save(); renderData(); } }
-  };
-  card.appendChild(t);
-  p.appendChild(card);
-}
-
-/* =========================
-   Start
-   ========================= */
-setView("setup");
+  function set(view){
+    current=view;
+    updateNav();
+    render();
+  }
+  function updateNav(){
+    Object.entries(navButtons).forEach(([id,btn])=>{
+      if(btn) btn.setAttribute("aria-pressed", id===current);
+    });
+  }
+  function render(){
+    panel.innerHTML="";
+    Views[current].render(panel);
+  }
+  return { set, get:()=>current, render };
+})();
+renderCurrentView=()=>Router.render();
+goToView=view=>Router.set(view);
+Router.set("setup");
 </script>
 </body>
 </html>
